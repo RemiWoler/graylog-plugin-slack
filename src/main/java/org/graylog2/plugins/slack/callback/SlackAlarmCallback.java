@@ -1,5 +1,6 @@
 package org.graylog2.plugins.slack.callback;
 
+import org.graylog2.plugin.MessageSummary;
 import org.graylog2.plugins.slack.SlackClient;
 import org.graylog2.plugins.slack.SlackMessage;
 import org.graylog2.plugins.slack.SlackPluginBase;
@@ -12,6 +13,8 @@ import org.graylog2.plugin.configuration.ConfigurationException;
 import org.graylog2.plugin.configuration.ConfigurationRequest;
 import org.graylog2.plugin.streams.Stream;
 
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -36,21 +39,36 @@ public class SlackAlarmCallback extends SlackPluginBase implements AlarmCallback
         final SlackClient client = new SlackClient(configuration.getString(CK_WEBHOOK_URL));
 
         SlackMessage message = new SlackMessage(
-                configuration.getString(CK_COLOR),
                 configuration.getString(CK_ICON_EMOJI),
                 configuration.getString(CK_ICON_URL),
-                buildMessage(stream, result),
                 configuration.getString(CK_USER_NAME),
                 configuration.getString(CK_CHANNEL),
                 configuration.getBoolean(CK_LINK_NAMES)
         );
 
-        // Add attachments if requested.
-        if(configuration.getBoolean(CK_ADD_ATTACHMENT)) {
-            message.addAttachment(new SlackMessage.AttachmentField("Stream ID", stream.getId(), true));
-            message.addAttachment(new SlackMessage.AttachmentField("Stream Title", stream.getTitle(), false));
-            message.addAttachment(new SlackMessage.AttachmentField("Stream Description", stream.getDescription(), false));
+        //add content of messageHistory as attachments
+        List<MessageSummary> messageHistory = result.getMatchingMessages();
+        MessageSummary msgFirst = messageHistory.get(0); //get first for the fallback
+        Iterator<MessageSummary> itr = messageHistory.iterator();
+
+        SlackMessage.Attachment attachment = new SlackMessage.Attachment();
+        attachment.setFallback(new StringBuilder("*[").append(msgFirst.getSource()).append("]* `").append(msgFirst.getMessage()).append("` \n(").append(stream.getTitle()).append(") ").append(result.getResultDescription()).toString());
+        attachment.setPretext(new StringBuilder("Alert for Graylog stream *").append(stream.getTitle()).append("*").toString());
+        attachment.setTitle(result.getResultDescription());
+        if (isSet(configuration.getString(CK_GRAYLOG2_URL))) {
+            attachment.setTitle_link(buildStreamLink(configuration.getString(CK_GRAYLOG2_URL), stream));
         }
+        if (isSet(configuration.getString(CK_COLOR))) {
+            attachment.setColor(configuration.getString(CK_COLOR));
+        }
+        StringBuilder text = new StringBuilder();
+        while(itr.hasNext()) {
+            MessageSummary msg = itr.next();
+            text.append("*[").append(msg.getSource()).append("]* `").append(msg.getMessage()).append("`\n");
+        }
+        attachment.setText(text.toString());
+
+        message.addAttachments(attachment);
 
         try {
             client.send(message);
@@ -59,24 +77,7 @@ public class SlackAlarmCallback extends SlackPluginBase implements AlarmCallback
         }
     }
 
-    public String buildMessage(Stream stream, AlertCondition.CheckResult result) {
-        String graylogUri = configuration.getString(CK_GRAYLOG2_URL);
-        boolean notifyChannel = configuration.getBoolean(CK_NOTIFY_CHANNEL);
-
-        String titleLink;
-        if (isSet(graylogUri)) {
-            titleLink = "<" + buildStreamLink(graylogUri, stream) + "|" + stream.getTitle() + ">";
-        } else {
-            titleLink = "_" + stream.getTitle() + "_";
-        }
-
-        final StringBuilder message = new StringBuilder(notifyChannel ? "@channel " : "");
-        message.append("*Alert for Graylog stream ").append(titleLink).append("*:\n").append("> ").append(result.getResultDescription());
-
-        return message.toString();
-    }
-
-    private final boolean isSet(String x) {
+    private boolean isSet(String x) {
         // Bug in graylog-server v1.2: Empty values are stored as "null" String. This is a dirty workaround.
         return !isNullOrEmpty(x) && !x.equals("null");
     }

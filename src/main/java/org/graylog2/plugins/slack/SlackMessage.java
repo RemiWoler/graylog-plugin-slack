@@ -1,17 +1,12 @@
 package org.graylog2.plugins.slack;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 
@@ -19,31 +14,25 @@ public class SlackMessage {
 
     private final String channel;
     private final String userName;
-    private final String message;
     private final String iconUrl;
     private final String iconEmoji;
-    private final String color;
     private final boolean linkNames;
 
-    private final List<AttachmentField> attachments;
+    private final List<Attachment> attachments;
 
-    public SlackMessage(String color, String iconEmoji, String iconUrl, String message, String userName, String channel, boolean linkNames) {
-        this.color = color;
+    public SlackMessage(String iconEmoji, String iconUrl, String userName, String channel, boolean linkNames) {
         this.iconEmoji = iconEmoji;
         this.iconUrl = iconUrl;
-        this.message = message;
         this.userName = userName;
         this.channel = channel;
         this.linkNames = linkNames;
-
-        this.attachments = Lists.newArrayList();
+        this.attachments = new ArrayList<>();
     }
 
     public String getJsonString() {
         // See https://api.slack.com/methods/chat.postMessage for valid parameters
         final Map<String, Object> params = new HashMap<String, Object>(){{
             put("channel", channel);
-            put("text", message.toString());
             put("link_names", linkNames ? "1" : "0");
             put("parse", "none");
         }};
@@ -61,8 +50,6 @@ public class SlackMessage {
         }
 
         if (!attachments.isEmpty()) {
-            final Attachment attachment = new Attachment("Alert details", null, "Details:", color, attachments);
-            final List<Attachment> attachments = ImmutableList.of(attachment);
             params.put("attachments", attachments);
         }
 
@@ -73,7 +60,7 @@ public class SlackMessage {
         }
     }
 
-    public void addAttachment(AttachmentField attachment) {
+    public void addAttachments(Attachment attachment) {
         this.attachments.add(attachment);
     }
 
@@ -99,6 +86,31 @@ public class SlackMessage {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Attachment {
+        @JsonCreator
+        public void setFallback(String fallback) {
+            this.fallback = fallback;
+        }
+        @JsonCreator
+        public void setText(String text) {
+            this.text = text;
+        }
+        @JsonCreator
+        public void setPretext(String pretext) {
+            this.pretext = pretext;
+        }
+        @JsonCreator
+        public void setColor(String color) {
+            this.color = color;
+        }
+        @JsonCreator
+        public void setTitle(String title) {
+            this.title = title;
+        }
+        @JsonCreator
+        public void setTitle_link(String title_link) {
+            this.title_link = title_link;
+        }
+
         @JsonProperty
         public String fallback;
         @JsonProperty
@@ -108,15 +120,16 @@ public class SlackMessage {
         @JsonProperty
         public String color = "good";
         @JsonProperty
-        public List<AttachmentField> fields;
-
-        @JsonCreator
-        public Attachment(String fallback, String text, String pretext, String color, List<AttachmentField> fields) {
-            this.fallback = fallback;
-            this.text = text;
-            this.pretext = pretext;
-            this.color = color;
-            this.fields = fields;
+        public String title;
+        @JsonProperty
+        public String title_link;
+        @JsonProperty
+        public List<String> mrkdwn_in;
+        @JsonIgnore
+        public Attachment() {
+            this.mrkdwn_in = new ArrayList<String>();
+            this.mrkdwn_in.add("text");
+            this.mrkdwn_in.add("pretext");
         }
     }
 

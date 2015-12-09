@@ -58,10 +58,9 @@ public class SlackMessageOutput extends SlackPluginBase implements MessageOutput
     @Override
     public void write(Message msg) throws Exception {
         SlackMessage slackMessage = new SlackMessage(
-                configuration.getString(CK_COLOR),
                 configuration.getString(CK_ICON_EMOJI),
                 configuration.getString(CK_ICON_URL),
-                buildMessage(stream, msg),
+                //buildMessage(stream, msg),
                 configuration.getString(CK_USER_NAME),
                 configuration.getString(CK_CHANNEL),
                 configuration.getBoolean(CK_LINK_NAMES)
@@ -69,15 +68,15 @@ public class SlackMessageOutput extends SlackPluginBase implements MessageOutput
 
         // Add attachments if requested.
         if(configuration.getBoolean(CK_ADD_ATTACHMENT)) {
-            slackMessage.addAttachment(new SlackMessage.AttachmentField("Stream Description", stream.getDescription(), false));
-            slackMessage.addAttachment(new SlackMessage.AttachmentField("Source", msg.getSource(), true));
+            //slackMessage.addAttachment(new SlackMessage.AttachmentField("Stream Description", stream.getDescription(), false));
+            //slackMessage.addAttachment(new SlackMessage.AttachmentField("Source", msg.getSource(), true));
 
             for (Map.Entry<String, Object> field : msg.getFields().entrySet()) {
                 if (Message.RESERVED_FIELDS.contains(field.getKey())) {
                     continue;
                 }
 
-                slackMessage.addAttachment(new SlackMessage.AttachmentField(field.getKey(), field.getValue().toString(), true));
+                //slackMessage.addAttachment(new SlackMessage.AttachmentField(field.getKey(), field.getValue().toString(), true));
             }
 
         }
